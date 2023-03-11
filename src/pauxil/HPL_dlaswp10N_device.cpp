@@ -16,27 +16,64 @@
 
 #include "hpl.hpp"
 #include <hip/hip_runtime.h>
+#include <cassert>
 
-#define BLOCK_SIZE 512
+#define assertm(exp, msg) assert(((void)msg, exp))
 
+#define BLOCK_SIZE 256
+
+__launch_bounds__(BLOCK_SIZE)
 __global__ void dlaswp10N(const int M,
                           const int N,
                           double* __restrict__ A,
                           const int LDA,
                           const int* __restrict__ IPIV) {
 
+
+  __shared__ int s_piv[1024];
+
+  for (int t=threadIdx.x;t<N;t+=BLOCK_SIZE) {
+    s_piv[t] = IPIV[t];
+  }
+
+  __syncthreads();
+
   const int m = threadIdx.x + BLOCK_SIZE * blockIdx.x;
 
   if(m < M) {
-    for(int i = 0; i < N; i++) {
-      const int ip = IPIV[i];
+    for(int i = 0; i < N; ++i) {
 
-      if(ip != i) {
-        // swap
-        const double Ai           = A[m + i * ((size_t)LDA)];
-        const double Aip          = A[m + ip * ((size_t)LDA)];
-        A[m + i * ((size_t)LDA)]  = Aip;
-        A[m + ip * ((size_t)LDA)] = Ai;
+      int n = i;
+      int pn = s_piv[i];
+
+      if (pn!=i) {
+        double An  = A[m + n * static_cast<size_t>(LDA)];
+
+        while (pn!=i) {
+          //swap
+          A[m + n * static_cast<size_t>(LDA)] = A[m + pn * static_cast<size_t>(LDA)];
+
+          n = pn;
+          pn = s_piv[pn];
+        }
+
+        A[m + n * static_cast<size_t>(LDA)] = An;
+
+        __syncthreads();
+
+        if (threadIdx.x==0) { //thread 0 records pivots
+          n = i;
+          pn = s_piv[i];
+
+          while (pn!=i) {
+            s_piv[n] = n;
+            n = pn;
+            pn = s_piv[n];
+          }
+          s_piv[n] = n;
+        }
+
+        __syncthreads();
       }
     }
   }
@@ -82,6 +119,8 @@ void HPL_dlaswp10N(const int  M,
    */
 
   if((M <= 0) || (N <= 0)) return;
+
+  assertm(N <= 1024, "NB too large in HPL_dlaswp10N");
 
   hipStream_t stream;
   rocblas_get_stream(handle, &stream);

@@ -86,4 +86,13 @@ void HPL_perm(const int N, int* LINDXA, int* LINDXAU, int* IWORK) {
     IWORK[k]   = j;
     LINDXAU[i] = k;
   }
+
+  /*Unroll the permutations*/
+  for(i = 0; i < N; i++) {
+    IWORK[i] = LINDXAU[i];
+    LINDXAU[i] = i;
+  }
+  for(i = 0; i < N; i++) {
+    std::swap(LINDXAU[i], LINDXAU[IWORK[i]]);
+  }
 }
