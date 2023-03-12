@@ -83,10 +83,12 @@ int HPL_grid_init(MPI_Comm          COMM,
   int local_rank = rank % local_size;
   int node       = rank / local_size; // node number
 
+  /*Local grid is always row-major*/
+  local_mycol = local_rank % q;
+  local_myrow = local_rank / q;
+
   if(ORDER == HPL_ROW_MAJOR) {
     GRID->order = HPL_ROW_MAJOR;
-    local_mycol = local_rank % q;
-    local_myrow = local_rank / q;
 
     int noderow = node / (NPCOL / q);
     int nodecol = node % (NPCOL / q);
@@ -98,8 +100,6 @@ int HPL_grid_init(MPI_Comm          COMM,
     mycol = rank - myrow * NPCOL;
   } else {
     GRID->order = HPL_COLUMN_MAJOR;
-    local_mycol = local_rank / p;
-    local_myrow = local_rank % p;
 
     int noderow = node % (NPROW / p);
     int nodecol = node / (NPROW / p);

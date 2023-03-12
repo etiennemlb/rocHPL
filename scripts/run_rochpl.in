@@ -276,17 +276,11 @@ fi
 row_stride=$((total_cpu_cores/p))
 col_stride=$((row_stride/q))
 
-myp=$((rank%p))
-myq=$((rank/p))
+#Ranks are always row-major order on node
+myq=$((rank%q))
+myp=$((rank/q))
 
-#Although ranks are column-major order, we select GPUs in row-major order on node
-mygpu=$((myq+myp*q + gpu_offset))
-
-gpu_list="${gpu_offset}"
-for i in $(seq $((gpu_offset+1)) $((gpu_offset+size-1)))
-do
-  gpu_list+=",$i"
-done
+mygpu=$((rank + gpu_offset))
 
 # Try to detect special Bard-peak core mapping
 if [[ -n ${HPL_PLATFORM+x} ]]; then
@@ -294,8 +288,6 @@ if [[ -n ${HPL_PLATFORM+x} ]]; then
 else
   platform=$(cat /sys/class/dmi/id/product_name)
 fi
-
-platform=null
 
 if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
   # Special core mapping for BardPeak
@@ -446,8 +438,10 @@ export OMP_NUM_THREADS=${omp_num_threads}
 export OMP_PLACES=${omp_places}
 export OMP_PROC_BIND=true
 
+export HIP_VISIBLE_DEVICES=$mygpu
+
 if [[ $globalRank -lt $size ]]; then
-  echo "Node Binding: Process $rank [(p,q)=($myp,$myq)] CPU Cores: $omp_num_threads - $places"
+  echo "Node Binding: Process $rank [(p,q)=($myp,$myq)], GPU: $mygpu, CPU Cores: $omp_num_threads - $places"
 fi
 
 rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac}"
@@ -456,8 +450,6 @@ if [[ "${inputfile}" == true ]]; then
 else
   rochpl_args+=" -N ${N} -NB ${NB}"
 fi
-
-export HIP_VISIBLE_DEVICES=$gpu_list
 
 #run
 ${rochpl_bin} ${rochpl_args}

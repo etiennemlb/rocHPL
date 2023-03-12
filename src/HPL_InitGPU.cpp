@@ -60,17 +60,17 @@ void HPL_InitGPU(const HPL_T_grid* GRID) {
   dev = localRank % deviceCount;
 
 #ifdef HPL_VERBOSE_PRINT
-  if(rank < localSize) {
-    hipDeviceProp_t props;
-    hipGetDeviceProperties(&props, dev);
+  // if(rank < localSize) {
+  //   hipDeviceProp_t props;
+  //   hipGetDeviceProperties(&props, dev);
 
-    printf("GPU  Binding: Process %d [(p,q)=(%d,%d)] GPU: %d, pciBusID %x \n",
-           rank,
-           GRID->local_myrow,
-           GRID->local_mycol,
-           dev,
-           props.pciBusID);
-  }
+  //   printf("GPU  Binding: Process %d [(p,q)=(%d,%d)] GPU: %d, pciBusID %x \n",
+  //          rank,
+  //          GRID->local_myrow,
+  //          GRID->local_mycol,
+  //          dev,
+  //          props.pciBusID);
+  // }
 #endif
 
   /* Assign device to MPI process, initialize BLAS and probe device properties
